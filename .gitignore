@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Environment & Secrets
+.env
+.env.local
+config/tokens.json
+*token*
+*TOKEN*
+*secret*
+*SECRET*
+*KEY*
+*key*
+
+# Data
+data/*.txt
+data/*.json
+data/cache/*
+
+# Logs
+logs/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Virtual Environment
+venv/
+.venv/
+env/
+
+# Discord
+discord.log
