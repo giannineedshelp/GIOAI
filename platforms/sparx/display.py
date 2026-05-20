@@ -1,14 +1,19 @@
 # platforms/sparx/display.py
 import discord
 from datetime import datetime
+import random
 
-# Your custom emojis
+# ═══════════════════════════════════════════════
+# YOUR ACTUAL CUSTOM EMOJIS (from your repo)
+# ═══════════════════════════════════════════════
+
 PROGRESS = {
     "full":  {"l": "<:lb_g:5988>",  "m": "<:emojigg_l_g:2827>", "r": "<:lb4_g:3166>"},
     "empty": {"l": "<:lb2_g:5499>", "m": "<:l2_g:3451>",        "r": "<:lb3_g:2881>"},
 }
 
 def progress_bar(pct):
+    """3-segment progress bar using your PROGRESS emojis"""
     filled = max(0, min(3, round(pct / 100 * 3)))
     if filled == 0: 
         return PROGRESS["empty"]["l"] + PROGRESS["empty"]["m"] + PROGRESS["empty"]["r"]
@@ -18,19 +23,91 @@ def progress_bar(pct):
         return PROGRESS["full"]["l"] + PROGRESS["empty"]["m"] + PROGRESS["empty"]["r"]
     return PROGRESS["full"]["l"] + PROGRESS["full"]["m"] + PROGRESS["empty"]["r"]
 
-def create_task_message(account_name, assignment_name, tasks, page_current, page_total, simulated_seconds, fake_min=5, fake_max=8):
+
+def create_task_message(
+    account_name,
+    assignment_name,
+    tasks,
+    page_current,
+    page_total,
+    simulated_seconds,
+    fake_min=60,
+    fake_max=70,
+    correct_count=0,
+    xp_gained=0,
+    finish_timestamp=None,
+    warning=None,
+):
+    """
+    Creates DM progress message with the exact format you showed.
+    Uses your PROGRESS emojis for the bar.
+    """
     lines = []
     lines.append(f"Account: `{account_name}`")
     lines.append(f"Name: `{assignment_name}`")
+    
     completed = sum(1 for t in tasks if t["pct"] >= 100)
-    status = "Completed ✓" if completed == len(tasks) else f"{completed}/{len(tasks)}"
-    lines.append(f"Status: `{status}`")
-    lines.append(f"Page: `{page_current} of {page_total}`")
+    total = len(tasks)
+    
+    if completed == total:
+        lines.append("Status: `Completed ✓`")
+    else:
+        lines.append("Status: `Getting activity...`")
+    
+    if warning:
+        lines.append(f"Warning: `{warning}`")
+    
     lines.append("")
+    
     for i, task in enumerate(tasks, 1):
-        lines.append(f"-# {i}. {task['name']} **` {task['pct']}% `**")
-        lines.append(progress_bar(task['pct']))
+        pct = task["pct"]
+        name_display = task["name"][:45]
+        lines.append(f"-# {i}. {name_display} **` {pct}% `**")
+        lines.append(progress_bar(pct))
+    
     lines.append("")
+    
+    total_qs = sum(t.get("total_q", 1) for t in tasks) if tasks else 1
+    lines.append(f"-# **Correct:** {correct_count}/{total_qs}")
     lines.append(f"-# **Simulated time:** {simulated_seconds//60}m {simulated_seconds%60}s")
     lines.append(f"-# **Fake Question Time:** {fake_min}s - {fake_max}s")
+    lines.append(f"-# **XP Gained:** {xp_gained}")
+    
+    if finish_timestamp:
+        lines.append(f"-# **Finishes** <t:{finish_timestamp}:R>")
+    
     return "\n".join(lines)
+
+
+def create_completion_message(account_name, assignment_name, total_questions, correct_count, simulated_seconds, fake_min=60, fake_max=70, xp_gained=0):
+    """Final completion message with full bars"""
+    lines = []
+    lines.append(f"Account: `{account_name}`")
+    lines.append(f"Name: `{assignment_name}`")
+    lines.append("Status: `Completed ✓`")
+    lines.append("")
+    bar = progress_bar(100)
+    lines.append(f"-# All tasks completed **` 100% `**")
+    lines.append(bar)
+    lines.append("")
+    lines.append(f"-# **Correct:** {correct_count}/{total_questions}")
+    lines.append(f"-# **Simulated time:** {simulated_seconds//60}m {simulated_seconds%60}s")
+    lines.append(f"-# **Fake Question Time:** {fake_min}s - {fake_max}s")
+    lines.append(f"-# **XP Gained:** {xp_gained}")
+    return "\n".join(lines)
+
+
+# Embed color palette
+EMBED_COLORS = [
+    0x5865F2,  # Blurple
+    0x57F287,  # Green
+    0xFEE75C,  # Yellow
+    0xEB459E,  # Pink
+    0xED4245,  # Red
+    0x00FFCC,  # Teal
+    0xFF6600,  # Orange
+    0x9B59B6,  # Purple
+]
+
+def random_color():
+    return random.choice(EMBED_COLORS)
