@@ -15,12 +15,12 @@ except ImportError:
     HAS_AIOHTTP = False
     logger.warning("aiohttp not installed. Install with: pip install aiohttp")
 
-
 class LNApiClient:
     """API client for LanguageNut.com"""
 
     def __init__(self, base_url: str = None):
-        self.base_url = base_url or "https://www.languagenut.com/resources/en-gb"
+        # FIXED: Correct API base URL, not the web app URL
+        self.base_url = base_url or "https://api.languagenut.com"
         self.token = None
         self.username = None
         self.logged_in = False
@@ -41,7 +41,7 @@ class LNApiClient:
             "User-Agent": self._get_user_agent(),
             "Accept": "application/json, text/plain, */*",
             "Accept-Language": "en-GB,en;q=0.9",
-            "Referer": f"{self.base_url}/index.html",
+            "Referer": "https://www.languagenut.com/",
             "Origin": "https://www.languagenut.com",
             "DNT": "1",
             "Connection": "keep-alive",
@@ -53,21 +53,16 @@ class LNApiClient:
             headers["Content-Type"] = content_type
         return headers
 
-    # --- Sync methods (for curl_cffi / requests fallback) ---
-
     def _get(self, endpoint: str, params: dict = None) -> dict:
         """Sync GET request - used by old/legacy code paths"""
         import requests
-
         url = f"{self.base_url}/{endpoint}"
         headers = self._get_headers()
-
         try:
             from curl_cffi import requests as curl_requests
             resp = curl_requests.get(url, params=params, headers=headers, impersonate="chrome125", timeout=15)
         except ImportError:
             resp = requests.get(url, params=params, headers=headers, timeout=15)
-
         if resp.status_code == 200:
             return resp.json()
         raise Exception(f"GET {endpoint} returned {resp.status_code}: {resp.text[:200]}")
@@ -75,39 +70,27 @@ class LNApiClient:
     def _post(self, endpoint: str, data: dict = None) -> dict:
         """Sync POST request (form-encoded) - used by old/legacy code paths"""
         import requests
-
         url = f"{self.base_url}/{endpoint}"
         headers = self._get_headers("application/x-www-form-urlencoded; charset=UTF-8")
-
         try:
             from curl_cffi import requests as curl_requests
             resp = curl_requests.post(url, data=data, headers=headers, impersonate="chrome125", timeout=15)
         except ImportError:
             resp = requests.post(url, data=data, headers=headers, timeout=15)
-
         if resp.status_code == 200:
             return resp.json()
         raise Exception(f"POST {endpoint} returned {resp.status_code}: {resp.text[:200]}")
 
-    # --- Async methods (for XP farm / modern code paths) ---
-
     async def _get_async(self, endpoint: str, params: dict = None) -> dict:
         """Async GET request to LanguageNut API"""
         if not HAS_AIOHTTP:
-            # Fallback to sync in threadpool
             loop = asyncio.get_event_loop()
             return await loop.run_in_executor(None, self._get, endpoint, params)
-
         url = f"{self.base_url}/{endpoint}"
         headers = self._get_headers()
-
         async with aiohttp.ClientSession() as session:
-            async with session.get(
-                url,
-                params=params,
-                headers=headers,
-                timeout=aiohttp.ClientTimeout(total=15),
-            ) as resp:
+            async with session.get(url, params=params, headers=headers,
+                                   timeout=aiohttp.ClientTimeout(total=15)) as resp:
                 if resp.status == 200:
                     return await resp.json()
                 text = await resp.text()
@@ -118,32 +101,30 @@ class LNApiClient:
         if not HAS_AIOHTTP:
             loop = asyncio.get_event_loop()
             return await loop.run_in_executor(None, self._post, endpoint, data)
-
         url = f"{self.base_url}/{endpoint}"
         headers = self._get_headers("application/x-www-form-urlencoded; charset=UTF-8")
-
         async with aiohttp.ClientSession() as session:
-            async with session.post(
-                url,
-                data=data,
-                headers=headers,
-                timeout=aiohttp.ClientTimeout(total=15),
-            ) as resp:
+            async with session.post(url, data=data, headers=headers,
+                                    timeout=aiohttp.ClientTimeout(total=15)) as resp:
                 if resp.status == 200:
                     return await resp.json()
                 text = await resp.text()
                 raise Exception(f"POST {endpoint} returned {resp.status}: {text[:200]}")
 
-    # --- Auth methods ---
+    # =================================================================
+    # Auth methods
+    # =================================================================
 
     async def login(self, username: str, password: str) -> dict:
-        """Login to LanguageNut. Returns the login response dict."""
+        """Login to LanguageNut. Returns the login response dict.
+        FIXED: API returns "newToken" not "token" """
         result = await self._post_async("loginController/attemptLogin", {
             "username": username,
             "pass": password,
         })
-        if result and "token" in result:
-            self.token = result["token"]
+        # FIXED: check for "newToken" instead of "token"
+        if result and "newToken" in result:
+            self.token = result["newToken"]
             self.username = username
             self.logged_in = True
             logger.info(f"Logged in as {username}")
@@ -154,24 +135,40 @@ class LNApiClient:
         return result
 
     def login_sync(self, username: str, password: str) -> dict:
-        """Sync login (for legacy code paths)"""
+        """Sync login (for legacy code paths). FIXED: newToken check."""
         result = self._post("loginController/attemptLogin", {
             "username": username,
             "pass": password,
         })
-        if result and "token" in result:
-            self.token = result["token"]
+        # FIXED: check for "newToken" instead of "token"
+        if result and "newToken" in result:
+            self.token = result["newToken"]
             self.username = username
             self.logged_in = True
         return result
 
-    # --- Game data methods ---
+    # =================================================================
+    # call_lnut — generic endpoint helper (token as query param)
+    # This is the PROVEN working pattern
+    # =================================================================
+
+    async def call_lnut(self, endpoint: str, params: dict = None) -> dict:
+        """Generic async GET helper — token passed as query param.
+        This is used by commands.py and discover.py."""
+        if params is None:
+            params = {}
+        if self.token and "token" not in params:
+            params["token"] = self.token
+        return await self._get_async(endpoint, params=params)
+
+    # =================================================================
+    # Game data methods
+    # =================================================================
 
     async def get_game_vocab(self, curriculum_uid: int, product: str = "secondary") -> dict:
         """Fetch vocabulary questions for XP farming"""
         if not self.token:
             raise Exception("Not logged in. Call login() first.")
-
         timestamp = int(time.time() * 1000)
         params = {
             "curriculumUid": curriculum_uid,
@@ -181,19 +178,13 @@ class LNApiClient:
         }
         return await self._get_async("gameDataController/getGameVocab", params=params)
 
-    async def add_game_score(
-        self,
-        correct_uids: list,
-        incorrect_uids: list,
-        product: str = "secondary",
-    ) -> dict:
+    async def add_game_score(self, correct_uids: list, incorrect_uids: list,
+                             product: str = "secondary") -> dict:
         """Submit a game score to earn XP"""
         if not self.token:
             raise Exception("Not logged in. Call login() first.")
-
         from datetime import datetime, timezone
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
-
         data = {
             "correctVocabUids": json.dumps(correct_uids),
             "incorrectVocabUids": json.dumps(incorrect_uids),
@@ -204,24 +195,29 @@ class LNApiClient:
         }
         return await self._post_async("gameDataController/addGameScore", data=data)
 
-    # --- Assignment methods ---
+    # =================================================================
+    # Assignment methods
+    # =================================================================
 
     async def get_assignments(self) -> dict:
         """Get viewable assignments"""
         if not self.token:
             raise Exception("Not logged in.")
-        return await self._get_async("assignmentController/getViewableAll", params={"token": self.token})
+        return await self.call_lnut("assignmentController/getViewableAll",
+                                     params={"token": self.token})
 
-    # --- Stats / Profile ---
+    # =================================================================
+    # Stats / Profile
+    # =================================================================
 
     async def get_stats(self) -> dict:
         """Get user stats"""
         if not self.token:
             raise Exception("Not logged in.")
-        return await self._get_async("stats/get", params={"token": self.token})
+        return await self.call_lnut("stats/get", params={"token": self.token})
 
     async def get_profile(self) -> dict:
         """Get user profile"""
         if not self.token:
             raise Exception("Not logged in.")
-        return await self._get_async("profile/get", params={"token": self.token})
+        return await self.call_lnut("profile/get", params={"token": self.token})
