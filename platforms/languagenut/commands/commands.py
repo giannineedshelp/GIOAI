@@ -125,8 +125,10 @@ async def do_login(username: str, password: str) -> Tuple[bool, str]:
     try:
         client = LNApiClient()
         result = await client.login(username, password)
-        if client.token:
-            return True, client.token
+        if client.token or result.get("newToken"):
+            if not client.token:
+            client.token = result.get("newToken")
+        return True, client.token
         return False, result.get("msg", "No token")
     except Exception as e:
         return False, str(e)
@@ -136,7 +138,9 @@ async def get_homeworks(token: str) -> list:
         client = LNApiClient()
         client.token = token
         data = await client.call_lnut("assignmentController/getViewableAll", {"token": token})
-        hws = data.get("list", data.get("homework", []))
+        hws = data.get("assignments", data.get("list", data.get("homework", [])))
+        if isinstance(hws, dict):
+            return list(hws.values())
         return hws if isinstance(hws, list) else []
     except Exception as e:
         logger.warning(f"get_homeworks failed: {e}")

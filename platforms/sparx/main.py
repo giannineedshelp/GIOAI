@@ -220,11 +220,38 @@ class SparxClient:
         async with curl_req.AsyncSession(impersonate="chrome120", verify=False, timeout=30) as c:
             c.cookies.set('live-resolver-school', school.id, domain='auth.sparxmaths.uk')
             c.cookies.set('cookie_preferences', '{"GA":false,"Hotjar":false,"PT":false,"version":4}', domain='auth.sparxmaths.uk')
+            c.cookies.set('live-resolver-school', school.id, domain='maths.sparx-learning.com')
+            c.cookies.set('cookie_preferences', '{"GA":false,"Hotjar":false,"PT":false,"version":4}', domain='maths.sparx-learning.com')
+            c.cookies.set('live-resolver-school', school.id, domain='maths.sparx-learning.com')
+            c.cookies.set('cookie_preferences', '{"GA":false,"Hotjar":false,"PT":false,"version":4}', domain='maths.sparx-learning.com')
+            # Warm up: hit the auth domain to pass browser check
+            try:
+                warm = await c.get('https://auth.sparxmaths.uk/', headers=headers)
+                logger.info(f'Warm-up status: {warm.status_code}')
+            except Exception as we:
+                logger.warning(f'Warm-up failed (non-fatal): {we}')
 
+            # Attempt 1 — password grant
             r = await c.post(TOKEN_URL, data={
                 'client_id': CLIENT_ID, 'hd': school.id, 'username': username,
                 'password': password, 'grant_type': 'password', 'scope': 'openid profile email',
-            })
+            }, headers=headers)
+            logger.info(f'Password grant attempt: {r.status_code}')
+            if r.status_code == 403:
+                logger.warning('Cloudflare block — retrying with fresh session')
+                if isinstance(c, curl_req.AsyncSession):
+                    await c.close()
+                c = curl_req.AsyncSession(impersonate="chrome124")
+                c.cookies.set('live-resolver-school', school.id, domain='auth.sparxmaths.uk')
+                c.cookies.set('live-resolver-school', school.id, domain='maths.sparx-learning.com')
+                c.cookies.set('cookie_preferences', '{"GA":false,"Hotjar":false,"PT":false,"version":4}', domain='auth.sparxmaths.uk')
+                c.cookies.set('cookie_preferences', '{"GA":false,"Hotjar":false,"PT":false,"version":4}', domain='maths.sparx-learning.com')
+                await asyncio.sleep(3)
+                r = await c.post(TOKEN_URL, data={
+                    'client_id': CLIENT_ID, 'hd': school.id, 'username': username,
+                    'password': password, 'grant_type': 'password', 'scope': 'openid profile email',
+                }, headers=headers)
+                logger.info(f'Password grant retry: {r.status_code})
 
             if r.status_code == 200:
                 j = r.json()
@@ -585,8 +612,77 @@ class HubView(View):
                 await interaction.response.send_message("❌ Login first", ephemeral=True)
                 return
             await interaction.response.defer(ephemeral=True)
-            await interaction.followup.send("▶ Starting auto-complete...", ephemeral=True)
-            # ... full auto-complete logic from your original code ...
+            await interaction.followup.send("📋 Fetching homeworks...", ephemeral=True)
+            try:
+                acc = s['accounts'][s['active']]
+                hws = await sparx.get_homeworks(acc)
+                if not hws:
+                    await interaction.followup.send("❌ No homeworks", ephemeral=True)
+                    return
+                pkg_id = hws[0]['id']
+                hw_name = hws[0]['name']
+                msg = await interaction.followup.send(f"▶ Auto-completing **{hw_name}**...", ephemeral=True)
+                
+                # GetTaskList
+                raw = await grpc(sparx.http, f"{STUDENT_API}/GetTaskList",
+                    [(1, 0, 1), (2, 2, [(3, 2, pkg_id)])],
+                    acc['token'], acc.get('session_id',''), acc.get('cookies',{}))
+                if not raw:
+                    await interaction.followup.send("❌ No task data", ephemeral=True)
+                    return
+                    
+                tasks = []
+                for _, _, val in raw:
+                    if isinstance(val, list):
+                        for item in val:
+                            if isinstance(item, tuple) and len(item) >= 3 and item[0] == 1 and isinstance(item[2], list):
+                                tasks.append(item[2])
+                if not tasks:
+                    await interaction.followup.send("❌ No tasks found", ephemeral=True)
+                    return
+                
+                total = len(tasks)
+                for t_idx, task in enumerate(tasks):
+                    task_name = ""
+                    acts = []
+                    for f in task:
+                        if isinstance(f, tuple):
+                            fi, _, fv = f
+                            if fi == 1 and isinstance(fv, str): task_name = fv[:50]
+                            elif fi == 4 and isinstance(fv, list): acts = fv
+                    if not acts: continue
+                    for a_idx, act_val in enumerate(acts):
+                        act_id = act_val[2] if isinstance(act_val, tuple) and len(act_val) >= 3 and act_val[0] == 5 else a_idx
+                        layout_data = await sparx.get_activity(acc, pkg_id, t_idx, act_id)
+                        if not layout_data: continue
+                        layout = layout_data.get('layout', {})
+                        q_text = sparx.extract_q(layout)
+                        if not q_text: continue
+                        
+                        code_ = sparx.extract_bookwork_code(layout)
+                        if code_:
+                            known = bookwork.find(code_)
+                            if known:
+                                ans = known.get('answer', known)
+                                if isinstance(ans, str): await sparx.submit_bookwork_check(acc, t_idx, act_id, ans)
+                                else: await sparx.submit(acc, t_idx, act_id, ans)
+                            continue
+                        
+                        solved = await sparx.solve_q(q_text)
+                        if not solved: continue
+                        await sparx.reg_start(acc, act_id)
+                        per_q = random.uniform(s['settings'].get('fake_min_secs', 4), s['settings'].get('fake_max_secs', 8)) if s['settings'].get('time_mode') == 'fake' else s['settings'].get('wait_secs_per_q', 5)
+                        await asyncio.sleep(per_q)
+                        await sparx.submit(acc, t_idx, act_id, solved)
+                    
+                    pct = (t_idx + 1) / total * 100
+                    bar = progress_bar(pct)
+                    await interaction.edit_original_response(content=f"▶ **{hw_name}**
+{bar} Task **{t_idx+1}/{total}**")
+                
+                await interaction.edit_original_response(content=f"✅ **{hw_name}** complete!")
+            except Exception as e:
+                await interaction.edit_original_response(content=f"❌ {str(e)[:2000]}")
 
         elif custom_id == "acc":
             if not s['accounts']:
