@@ -19,7 +19,7 @@ class LNApiClient:
     """API client for LanguageNut.com"""
 
     def __init__(self, base_url: str = None):
-        # FIXED: Correct API base URL, not the web app URL
+        # FIX 1: Correct API base URL
         self.base_url = base_url or "https://api.languagenut.com"
         self.token = None
         self.username = None
@@ -54,7 +54,7 @@ class LNApiClient:
         return headers
 
     def _get(self, endpoint: str, params: dict = None) -> dict:
-        """Sync GET request - used by old/legacy code paths"""
+        """Sync GET request"""
         import requests
         url = f"{self.base_url}/{endpoint}"
         headers = self._get_headers()
@@ -68,7 +68,7 @@ class LNApiClient:
         raise Exception(f"GET {endpoint} returned {resp.status_code}: {resp.text[:200]}")
 
     def _post(self, endpoint: str, data: dict = None) -> dict:
-        """Sync POST request (form-encoded) - used by old/legacy code paths"""
+        """Sync POST request (form-encoded)"""
         import requests
         url = f"{self.base_url}/{endpoint}"
         headers = self._get_headers("application/x-www-form-urlencoded; charset=UTF-8")
@@ -82,7 +82,7 @@ class LNApiClient:
         raise Exception(f"POST {endpoint} returned {resp.status_code}: {resp.text[:200]}")
 
     async def _get_async(self, endpoint: str, params: dict = None) -> dict:
-        """Async GET request to LanguageNut API"""
+        """Async GET request"""
         if not HAS_AIOHTTP:
             loop = asyncio.get_event_loop()
             return await loop.run_in_executor(None, self._get, endpoint, params)
@@ -112,35 +112,40 @@ class LNApiClient:
                 raise Exception(f"POST {endpoint} returned {resp.status}: {text[:200]}")
 
     # =================================================================
-    # Auth methods
+    # Auth methods — ALL FIXED
     # =================================================================
 
     async def login(self, username: str, password: str) -> dict:
-        """Login to LanguageNut. Returns the login response dict.
-        FIXED: API returns "newToken" not "token" """
-        result = await self._post_async("loginController/attemptLogin", {
+        """Login to LanguageNut.
+        FIX 2: Uses GET with query params (NOT POST with form data).
+        FIX 3: Checks for "newToken" (NOT "token").
+        Matches your working admin_api.py pattern.
+        """
+        result = await self._get_async("loginController/attemptLogin", {
             "username": username,
-            "pass": password,
+            "pass": password,  # LN uses "pass" not "password"
         })
-        # FIXED: check for "newToken" instead of "token"
+        # FIX 3: API returns "newToken" not "token"
         if result and "newToken" in result:
             self.token = result["newToken"]
             self.username = username
             self.logged_in = True
             logger.info(f"Logged in as {username}")
         else:
-            error = result.get("error", "UNKNOWN") if result else "NO_RESPONSE"
+            error = result.get("error", result.get("msg", "UNKNOWN")) if result else "NO_RESPONSE"
             logger.warning(f"Login failed for {username}: {error}")
             raise Exception(f"Login failed: {error}")
         return result
 
     def login_sync(self, username: str, password: str) -> dict:
-        """Sync login (for legacy code paths). FIXED: newToken check."""
-        result = self._post("loginController/attemptLogin", {
+        """Sync login (for legacy code paths).
+        FIX 2: Uses GET with query params.
+        FIX 3: Checks for "newToken".
+        """
+        result = self._get("loginController/attemptLogin", {
             "username": username,
             "pass": password,
         })
-        # FIXED: check for "newToken" instead of "token"
         if result and "newToken" in result:
             self.token = result["newToken"]
             self.username = username
@@ -149,12 +154,10 @@ class LNApiClient:
 
     # =================================================================
     # call_lnut — generic endpoint helper (token as query param)
-    # This is the PROVEN working pattern
     # =================================================================
 
     async def call_lnut(self, endpoint: str, params: dict = None) -> dict:
-        """Generic async GET helper — token passed as query param.
-        This is used by commands.py and discover.py."""
+        """Generic async GET helper — token passed as query param."""
         if params is None:
             params = {}
         if self.token and "token" not in params:
@@ -166,7 +169,6 @@ class LNApiClient:
     # =================================================================
 
     async def get_game_vocab(self, curriculum_uid: int, product: str = "secondary") -> dict:
-        """Fetch vocabulary questions for XP farming"""
         if not self.token:
             raise Exception("Not logged in. Call login() first.")
         timestamp = int(time.time() * 1000)
@@ -180,7 +182,6 @@ class LNApiClient:
 
     async def add_game_score(self, correct_uids: list, incorrect_uids: list,
                              product: str = "secondary") -> dict:
-        """Submit a game score to earn XP"""
         if not self.token:
             raise Exception("Not logged in. Call login() first.")
         from datetime import datetime, timezone
@@ -196,28 +197,20 @@ class LNApiClient:
         return await self._post_async("gameDataController/addGameScore", data=data)
 
     # =================================================================
-    # Assignment methods
+    # Assignment / Stats methods
     # =================================================================
 
     async def get_assignments(self) -> dict:
-        """Get viewable assignments"""
         if not self.token:
             raise Exception("Not logged in.")
-        return await self.call_lnut("assignmentController/getViewableAll",
-                                     params={"token": self.token})
-
-    # =================================================================
-    # Stats / Profile
-    # =================================================================
+        return await self.call_lnut("assignmentController/getViewableAll", params={"token": self.token})
 
     async def get_stats(self) -> dict:
-        """Get user stats"""
         if not self.token:
             raise Exception("Not logged in.")
         return await self.call_lnut("stats/get", params={"token": self.token})
 
     async def get_profile(self) -> dict:
-        """Get user profile"""
         if not self.token:
             raise Exception("Not logged in.")
         return await self.call_lnut("profile/get", params={"token": self.token})

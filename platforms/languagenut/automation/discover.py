@@ -1,4 +1,4 @@
-"""Homework discovery and metadata resolution."""
+"""Homework discovery and metadata resolution. FIXED: all methods are async."""
 
 from __future__ import annotations
 import logging
@@ -27,7 +27,7 @@ class HomeworkDiscoverer:
         return "vocabs"
 
     async def get_all_homeworks(self, token: str) -> list[dict]:
-        """FIXED: Now async — awaits call_lnut properly."""
+        """FIXED: async — awaits call_lnut."""
         data = await self.api.call_lnut("assignmentController/getViewableAll",
                                         {"token": token})
         homeworks = data.get("homework", []) or []
@@ -59,7 +59,7 @@ class HomeworkDiscoverer:
         return incomplete
 
     async def _load_translations(self) -> None:
-        """FIXED: Now async."""
+        """FIXED: async."""
         data = await self.api.call_lnut(
             "translationController/getUserModuleTranslations",
             {"token": self.api.token},
@@ -74,8 +74,7 @@ class HomeworkDiscoverer:
         name = task.get("verb_name", "Unknown Task")
         if not self.module_translations:
             try:
-                # Can't await in sync method, return raw name
-                pass
+                pass  # can't await in sync, return raw name
             except Exception as e:
                 logger.warning("Could not load module translations: %s", e)
         mts = task.get("module_translations")

@@ -1,10 +1,11 @@
 # GIOAI Helpers
-import asyncio, json, re, time, random, os
-from datetime import datetime
+import os
+from dotenv import load_dotenv
 
 def load_env():
-    from dotenv import load_dotenv
-    load_dotenv(os.path.join(os.path.dirname(__file__), "..", "..", ".env"))
+    dotenv_path = os.path.join(os.path.dirname(__file__), "..", "..", ".env")
+    if os.path.exists(dotenv_path):
+        load_dotenv(dotenv_path)
 
 def get(key, default=""):
     return os.getenv(key, default)

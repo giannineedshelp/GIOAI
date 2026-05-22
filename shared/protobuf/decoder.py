@@ -1,5 +1,5 @@
 # GIOAI Protobuf Decoder
-import struct, json, re, time, random
+import struct, json
 
 T_VARINT, T_FIXED64, T_LENDELIM, T_FIXED32 = 0, 1, 2, 5
 
@@ -48,8 +48,16 @@ def dec(data, off=0):
     return p
 
 async def grpc(cl, ep, pr, tok, sid, cok):
-    b = enc(pr); f = b'\x00' + struct.pack('>I', len(b)) + b
-    headers = {"Authorization": tok, "Content-Type": "application/grpc-web+proto", "x-grpc-web": "1", "x-server-offset": "0", "x-session-id": sid, "Cookie": "; ".join(f"{k}={v}" for k, v in cok.items())}
+    b = enc(pr)
+    f = b'\x00' + struct.pack('>I', len(b)) + b
+    headers = {
+        "Authorization": tok,
+        "Content-Type": "application/grpc-web+proto",
+        "x-grpc-web": "1",
+        "x-server-offset": "0",
+        "x-session-id": sid,
+        "Cookie": "; ".join(f"{k}={v}" for k, v in cok.items()),
+    }
     r = await cl.post(ep, content=f, headers=headers)
     if r.status_code != 200 or r.headers.get("grpc-status") is not None: return None
     return dec(r.content)
