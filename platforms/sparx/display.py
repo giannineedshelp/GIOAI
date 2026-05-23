@@ -23,6 +23,10 @@ def progress_bar(pct):
         return PROGRESS["full"]["l"] + PROGRESS["empty"]["m"] + PROGRESS["empty"]["r"]
     return PROGRESS["full"]["l"] + PROGRESS["full"]["m"] + PROGRESS["empty"]["r"]
 
+def text_progress_bar(pct, width=12):
+    """Simple text progress bar as fallback"""
+    filled = max(0, min(width, round(pct / 100 * width)))
+    return "█" * filled + "░" * (width - filled)
 
 def create_task_message(
     account_name,
@@ -39,14 +43,14 @@ def create_task_message(
     warning=None,
 ):
     """
-    Creates DM progress message with the exact format you showed.
+    Creates DM progress message with task-by-task percentage view.
     Uses your PROGRESS emojis for the bar.
     """
     lines = []
     lines.append(f"Account: `{account_name}`")
     lines.append(f"Name: `{assignment_name}`")
     
-    completed = sum(1 for t in tasks if t["pct"] >= 100)
+    completed = sum(1 for t in tasks if t.get("pct", 0) >= 100)
     total = len(tasks)
     
     if completed == total:
@@ -60,10 +64,11 @@ def create_task_message(
     lines.append("")
     
     for i, task in enumerate(tasks, 1):
-        pct = task["pct"]
-        name_display = task["name"][:45]
-        lines.append(f"-# {i}. {name_display} **` {pct}% `**")
-        lines.append(progress_bar(pct))
+        pct = task.get("pct", 0)
+        name_display = task.get("name", task.get("title", f"Task {i}"))[:45]
+        bar = text_progress_bar(pct, 10)
+        status_icon = "✅" if pct >= 100 else "🔄" if pct > 0 else "⏳"
+        lines.append(f"{status_icon} `{bar}` **{pct}%** — {name_display}")
     
     lines.append("")
     
@@ -74,10 +79,9 @@ def create_task_message(
     lines.append(f"-# **XP Gained:** {xp_gained}")
     
     if finish_timestamp:
-        lines.append(f"-# **Finishes** <t:{finish_timestamp}:R>")
+        lines.append(f"-# **Finishes:** <t:{finish_timestamp}:R>")
     
     return "\n".join(lines)
-
 
 def create_completion_message(account_name, assignment_name, total_questions, correct_count, simulated_seconds, fake_min=60, fake_max=70, xp_gained=0):
     """Final completion message with full bars"""
@@ -86,9 +90,8 @@ def create_completion_message(account_name, assignment_name, total_questions, co
     lines.append(f"Name: `{assignment_name}`")
     lines.append("Status: `Completed ✓`")
     lines.append("")
-    bar = progress_bar(100)
-    lines.append(f"-# All tasks completed **` 100% `**")
-    lines.append(bar)
+    bar = text_progress_bar(100, 12)
+    lines.append(f"✅ `{bar}` **100% — All tasks completed**")
     lines.append("")
     lines.append(f"-# **Correct:** {correct_count}/{total_questions}")
     lines.append(f"-# **Simulated time:** {simulated_seconds//60}m {simulated_seconds%60}s")
@@ -96,17 +99,54 @@ def create_completion_message(account_name, assignment_name, total_questions, co
     lines.append(f"-# **XP Gained:** {xp_gained}")
     return "\n".join(lines)
 
+def format_homeworks_for_display(homeworks, username):
+    """Format homework list with percentage and task breakdown for Discord"""
+    if not homeworks:
+        return f"**Homework for {username}**\nNo homework found! All caught up."
+    
+    # Separate incomplete and complete
+    incomplete = [h for h in homeworks if not h.get('completed')]
+    complete = [h for h in homeworks if h.get('completed')]
+    
+    lines = [f"**Homework for {username}**"]
+    
+    display_hw = incomplete + complete[:3]  # Incomplete first, then up to 3 completed
+    
+    for i, hw in enumerate(display_hw, 1):
+        title = hw.get('title', 'Homework')
+        subject = f" ({hw.get('subject_text', '')})" if hw.get('subject_text') else ""
+        status = hw.get('status', '')
+        total_q = hw.get('total_q', 0)
+        completed_q = hw.get('completed_q', 0)
+        due = hw.get('due', '')
+        
+        pct = (completed_q / total_q * 100) if total_q > 0 else 0
+        bar = text_progress_bar(pct, 10)
+        
+        # Determine status
+        is_done = (str(status).lower() in ('complete', 'completed', 'done', 'submitted', 'finished')
+                  or (total_q and completed_q and completed_q >= total_q))
+        status_icon = "✅" if is_done else "📝"
+        
+        lines.append(f"\n{status_icon} **{i}. {title}**{subject}")
+        lines.append(f"   `{bar}` **{pct:.0f}%** ({completed_q}/{total_q})")
+        
+        if due:
+            from shared.utils.helpers import fmt_date
+            lines.append(f"   ⏰ Due: {fmt_date(due)}")
+        
+        if status and not is_done:
+            lines.append(f"   📊 Status: {status}")
+    
+    if len(complete) > 3:
+        lines.append(f"\n*...and {len(complete) - 3} completed homeworks*")
+    
+    return "\n".join(lines)
 
 # Embed color palette
 EMBED_COLORS = [
-    0x5865F2,  # Blurple
-    0x57F287,  # Green
-    0xFEE75C,  # Yellow
-    0xEB459E,  # Pink
-    0xED4245,  # Red
-    0x00FFCC,  # Teal
-    0xFF6600,  # Orange
-    0x9B59B6,  # Purple
+    0x5865F2, 0x57F287, 0xFEE75C, 0xEB459E,
+    0xED4245, 0x00FFCC, 0xFF6600, 0x9B59B6,
 ]
 
 def random_color():
