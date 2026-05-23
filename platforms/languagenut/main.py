@@ -3,6 +3,9 @@ import os
 import sys
 import asyncio
 import logging
+
+# Ensure repo root is in path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 from datetime import datetime, timezone
 
 import discord

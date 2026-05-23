@@ -110,10 +110,7 @@ async def slash_sparx(interaction: discord.Interaction):
     em = {"online": "🟢", "idle": "🟡", "offline": "🔴"}.get(p["status"], "⚪")
     e = EmbedBuilder._base(EmbedBuilder.COLORS["sparx"])
     e.title = "📐 Sparx Maths"
-    e.description = f"Status: {em} `{p["status"].upper()}`\nPrefix: `s!`"
-e = EmbedBuilder._base(EmbedBuilder.COLORS["sparx"])
-    e.title = "📐 Sparx Maths"
-    e.description = f"Status: {em} `{p["status"].upper()}`\nPrefix: `s!`"
+    e.description = f"Status: {em} `{p['status'].upper()}`\nPrefix: `s!`"
     e.add_field(name="Commands", value="`s!hub` — Open the Sparx hub\n`s!login <school>` — Login to your school\n`s!homework` — View homework\n`s!dmupdate on/off` — Toggle DM progress", inline=False)
     e.set_footer(text="Sparx Maths | Powered by Manus AI")
     await interaction.response.send_message(embed=e, ephemeral=True)
@@ -124,7 +121,7 @@ async def slash_languagenut(interaction: discord.Interaction):
     em = {"online": "🟢", "idle": "🟡", "offline": "🔴"}.get(p["status"], "⚪")
     e = EmbedBuilder._base(EmbedBuilder.COLORS["farming"])
     e.title = "🌍 Languagenut"
-    e.description = f"Status: {em} `{p["status"].upper()}`\nPrefix: `ln!`"
+    e.description = f"Status: {em} `{p['status'].upper()}`\nPrefix: `ln!`"
     e.add_field(name="Commands", value="`ln!hub` — Open the Languagenut hub\n`ln!start` — Start farming\n`ln!status` — Check progress", inline=False)
     e.set_footer(text="Languagenut | Powered by Manus AI")
     await interaction.response.send_message(embed=e, ephemeral=True)
@@ -140,7 +137,7 @@ async def cmd_hub(ctx):
     e.add_field(name="Prefix", value="`g!hub` — This menu\n`g!ping` — Latency", inline=False)
     for k, p in platforms.get_all().items():
         em = {"online": "🟢", "idle": "🟡", "offline": "🔴"}.get(p["status"], "⚪")
-        e.add_field(name=f"{p["emoji"]} {p["name"]}", value=f"{em} `{p["status"].upper()}`\nPrefix: `{p["prefix"]}`", inline=True)
+        e.add_field(name=f"{p['emoji']} {p['name']}", value=f"{em} `{p['status'].upper()}`\nPrefix: `{p['prefix']}`", inline=True)
     await ctx.send(embed=e, delete_after=120)
 
 @bot.command(name="ping")
