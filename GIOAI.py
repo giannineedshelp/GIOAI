@@ -4,6 +4,7 @@
 
 import discord, os, sys, asyncio, time, logging
 from discord.ext import commands
+from shared.utils.embed_builder import EmbedBuilder
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -37,11 +38,11 @@ class PlatformStatus:
     def get_all(self):
         return self.platforms
     def to_embed(self):
-        e = discord.Embed(title="GIOAI Platform Status", color=0x5865F2, timestamp=discord.utils.utcnow())
+        e = EmbedBuilder._base(EmbedBuilder.COLORS["primary"])
         for key, p in self.platforms.items():
             em = {"online": "🟢", "idle": "🟡", "offline": "🔴"}.get(p["status"], "⚪")
             e.add_field(name=f"{p['emoji']} {p['name']}", value=f"{em} `{p['status'].upper()}`\nPrefix: `{p['prefix']}`", inline=False)
-        e.set_footer(text="GIOAI Controller")
+        e.set_footer(text="GIOAI Controller | Powered by Manus AI")
         return e
 
 platforms = PlatformStatus()
@@ -107,18 +108,25 @@ async def periodic_status():
 async def slash_sparx(interaction: discord.Interaction):
     p = platforms.get("sparx")
     em = {"online": "🟢", "idle": "🟡", "offline": "🔴"}.get(p["status"], "⚪")
-    e = discord.Embed(title="📐 Sparx Maths", description=f"Status: {em} `{p['status'].upper()}`\nPrefix: `s!`", color=0x57F287 if p["status"]=="online" else 0xED4245)
+    e = EmbedBuilder._base(EmbedBuilder.COLORS["sparx"])
+    e.title = "📐 Sparx Maths"
+    e.description = f"Status: {em} `{p["status"].upper()}`\nPrefix: `s!`"
+e = EmbedBuilder._base(EmbedBuilder.COLORS["sparx"])
+    e.title = "📐 Sparx Maths"
+    e.description = f"Status: {em} `{p["status"].upper()}`\nPrefix: `s!`"
     e.add_field(name="Commands", value="`s!hub` — Open the Sparx hub\n`s!login <school>` — Login to your school\n`s!homework` — View homework\n`s!dmupdate on/off` — Toggle DM progress", inline=False)
-    e.set_footer(text="Type s!hub in any channel to open the full menu")
+    e.set_footer(text="Sparx Maths | Powered by Manus AI")
     await interaction.response.send_message(embed=e, ephemeral=True)
 
 @bot.tree.command(name="languagenut", description="Open Languagenut hub")
 async def slash_languagenut(interaction: discord.Interaction):
     p = platforms.get("languagenut")
     em = {"online": "🟢", "idle": "🟡", "offline": "🔴"}.get(p["status"], "⚪")
-    e = discord.Embed(title="🌍 Languagenut", description=f"Status: {em} `{p['status'].upper()}`\nPrefix: `ln!`", color=0x9B59B6)
+    e = EmbedBuilder._base(EmbedBuilder.COLORS["farming"])
+    e.title = "🌍 Languagenut"
+    e.description = f"Status: {em} `{p["status"].upper()}`\nPrefix: `ln!`"
     e.add_field(name="Commands", value="`ln!hub` — Open the Languagenut hub\n`ln!start` — Start farming\n`ln!status` — Check progress", inline=False)
-    e.set_footer(text="Type ln!hub in any channel to open the full menu")
+    e.set_footer(text="Languagenut | Powered by Manus AI")
     await interaction.response.send_message(embed=e, ephemeral=True)
 
 @bot.tree.command(name="status", description="View all platform statuses")
@@ -127,12 +135,12 @@ async def slash_status(interaction: discord.Interaction):
 
 @bot.command(name="hub", aliases=["h", "menu"])
 async def cmd_hub(ctx):
-    e = discord.Embed(title="GIOAI Controller", color=0x5865F2)
+    e = EmbedBuilder._base(EmbedBuilder.COLORS["primary"])
     e.add_field(name="Slash Commands", value="</sparx> — Sparx\n</languagenut> — Languagenut\n</status> — All platforms", inline=False)
     e.add_field(name="Prefix", value="`g!hub` — This menu\n`g!ping` — Latency", inline=False)
     for k, p in platforms.get_all().items():
         em = {"online": "🟢", "idle": "🟡", "offline": "🔴"}.get(p["status"], "⚪")
-        e.add_field(name=f"{p['emoji']} {p['name']}", value=f"{em} `{p['status'].upper()}`", inline=True)
+        e.add_field(name=f"{p["emoji"]} {p["name"]}", value=f"{em} `{p["status"].upper()}`\nPrefix: `{p["prefix"]}`", inline=True)
     await ctx.send(embed=e, delete_after=120)
 
 @bot.command(name="ping")

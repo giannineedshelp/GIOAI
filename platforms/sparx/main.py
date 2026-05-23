@@ -13,6 +13,7 @@ from shared.protobuf.decoder import grpc, dec
 from shared.utils.helpers import load_env, get, fmt_bar
 from platforms.sparx.bookwork import bookwork
 from platforms.sparx.display import progress_bar, create_task_message, create_completion_message, random_color
+from shared.utils.embed_builder import EmbedBuilder
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("GIOAI-Sparx")
@@ -85,13 +86,14 @@ class BotStatus:
         return {"online": "Online", "idle": "Idle", "dnd": "Do Not Disturb", "offline": "Offline"}.get(status, "Unknown")
 
     def to_embed(self):
-        e = discord.Embed(title="GIOAI Platform Status", color=random_color(), timestamp=datetime.now())
+        e = EmbedBuilder._base(EmbedBuilder.COLORS["primary"])
+        e.title = "GIOAI Platform Status"
         for key, p in self.platforms.items():
             emoji = self.status_emoji(p["status"])
             text = self.status_text(p["status"])
             last = f" \u2014 {int(time.time() - p['last_seen'])}s ago" if p["last_seen"] else ""
             e.add_field(name=f"{emoji} {p['name']}", value=f"`{text}`{last}", inline=False)
-        e.set_footer(text="GIOAI Status Monitor")
+        e.set_footer(text="GIOAI Status Monitor | Powered by Manus AI")
         return e
 
 bot_status = BotStatus()
@@ -187,7 +189,7 @@ class AIEngine:
 class SparxClient:
     def __init__(self):
         self.ai = AIEngine()
-        self.http = curl_req.AsyncSession(impersonate="chrome120", verify=False, timeout=30)
+        self.http = curl_req.AsyncSession(impersonate="chrome124", verify=False, timeout=30)
 
     async def get_schools(self):
         global school_cache
@@ -217,7 +219,7 @@ class SparxClient:
 
     async def login(self, username, password, school):
         """FIXED: Uses curl_cffi with Chrome impersonation to bypass Cloudflare"""
-        async with curl_req.AsyncSession(impersonate="chrome120", verify=False, timeout=30) as c:
+        async with curl_req.AsyncSession(impersonate="chrome124", verify=False, timeout=30) as c:
             c.cookies.set('live-resolver-school', school.id, domain='auth.sparxmaths.uk')
             c.cookies.set('cookie_preferences', '{"GA":false,"Hotjar":false,"PT":false,"version":4}', domain='auth.sparxmaths.uk')
             c.cookies.set('live-resolver-school', school.id, domain='maths.sparx-learning.com')
@@ -251,7 +253,7 @@ class SparxClient:
                     'client_id': CLIENT_ID, 'hd': school.id, 'username': username,
                     'password': password, 'grant_type': 'password', 'scope': 'openid profile email',
                 }, headers=headers)
-                logger.info(f'Password grant retry: {r.status_code})
+                logger.info(f'Password grant retry: {r.status_code}')
 
             if r.status_code == 200:
                 j = r.json()
@@ -600,7 +602,9 @@ class HubView(View):
                 try:
                     hws = await sparx.get_homeworks(acc)
                     if not hws: continue
-                    e = discord.Embed(title=f"{acc.get('user_name',acc['username'])} @ {acc.get('school_name','?')}", color=random_color())
+                    e = EmbedBuilder._base(EmbedBuilder.COLORS["sparx"])
+                    e.title = f"📚 Homework for {acc.get('user_name',acc['username'])} @ {acc.get('school_name','?')}"
+                    e.set_footer(text="Sparx Maths | Powered by Manus AI")
                     for h in hws:
                         pct = (h['completed_qs']/h['total_qs']*100) if h['total_qs']>0 else 0
                         e.add_field(name=f"{progress_bar(pct)} {h['name'][:40]}", value=f"Due: `{h['due'][:10] or 'N/A'}` | `{h['completed_qs']}/{h['total_qs']}`", inline=False)
@@ -621,6 +625,12 @@ class HubView(View):
                     return
                 pkg_id = hws[0]['id']
                 hw_name = hws[0]['name']
+                if s.get("dm_update", True):
+                    dm_channel = interaction.user.dm_channel or await interaction.user.create_dm()
+                    dm_embed = EmbedBuilder.info(f"▶ Auto-completing **{hw_name}**", "Starting homework auto-completion...", footer_text="Sparx Maths | Powered by Manus AI")
+                    dm_msg = await dm_channel.send(embed=dm_embed)
+                else:
+                    dm_msg = None
                 msg = await interaction.followup.send(f"▶ Auto-completing **{hw_name}**...", ephemeral=True)
                 
                 # GetTaskList
@@ -676,7 +686,7 @@ class HubView(View):
                         await sparx.submit(acc, t_idx, act_id, solved)
                     
                     pct = (t_idx + 1) / total * 100
-                    bar = progress_bar(pct)
+
                     await interaction.edit_original_response(content=f"▶ **{hw_name}**
 {bar} Task **{t_idx+1}/{total}**")
                 
@@ -732,7 +742,9 @@ class HubView(View):
 
         elif custom_id == "status":
             await interaction.response.defer(ephemeral=True)
-            e = discord.Embed(title="📊 Bot Status", color=random_color())
+            e = EmbedBuilder._base(EmbedBuilder.COLORS["primary"])
+            e.title = "📊 Bot Status"
+            e.set_footer(text="Sparx Maths | Powered by Manus AI")
             e.add_field(name="Accounts", value=f"`{len(s['accounts'])}/{MAX_ACCOUNTS}`")
             if s['accounts'] and s['active'] >= 0:
                 a = s['accounts'][s['active']]
@@ -795,7 +807,7 @@ class LoginModal(Modal, title="Sparx Login"):
         if not matches:
             await interaction.followup.send(f"❌ No schools for `{school_q}`", ephemeral=True); return
         if len(matches) > 1:
-            e = discord.Embed(title="Select your school", description=f"Found `{len(matches)}`", color=random_color())
+            e = EmbedBuilder.info("Select your school", f"Found `{len(matches)}`", footer_text="Sparx Maths | Powered by Manus AI")
             for idx, s in enumerate(matches[:10]): e.add_field(name=f"`{idx+1}.` {s.name}", value=s.town or "\u2014", inline=False)
             await interaction.followup.send(embed=e, view=SchoolSelectView(matches, user, pwd), ephemeral=True); return
         school = matches[0]
@@ -805,10 +817,10 @@ class LoginModal(Modal, title="Sparx Login"):
         try:
             sess = await sparx.login(user, pwd, school)
             st['accounts'].append(sess); st['active'] = len(st['accounts']) - 1
-            e = discord.Embed(title="✅ Login Successful", description=f"**{sess.get('user_name',user)}**\n{school.name}", color=0x57F287)
+            e = EmbedBuilder.success("Login Successful", f"**{sess.get('user_name',user)}**\n{school.name}", footer_text="Sparx Maths | Powered by Manus AI")
             await interaction.followup.send(embed=e, ephemeral=True)
         except Exception as e:
-            e = discord.Embed(title="❌ Login Failed", description=str(e)[:2000], color=0xED4245)
+            e = EmbedBuilder.error("Login Failed", str(e)[:2000], footer_text="Sparx Maths | Powered by Manus AI")
             await interaction.followup.send(embed=e, ephemeral=True)
 
 class SchoolSelectView(View):
@@ -829,10 +841,10 @@ class SchoolPickSelect(Select):
         try:
             sess = await sparx.login(self.parent.username, self.parent.password, school)
             st['accounts'].append(sess); st['active'] = len(st['accounts']) - 1
-            e = discord.Embed(title="✅ Login Successful", description=f"**{sess.get('user_name',self.parent.username)}**\n{school.name}", color=0x57F287)
+            e = EmbedBuilder.success("Login Successful", f"**{sess.get('user_name',self.parent.username)}**\n{school.name}", footer_text="Sparx Maths | Powered by Manus AI")
             await interaction.followup.send(embed=e, ephemeral=True)
         except Exception as e:
-            e = discord.Embed(title="❌ Login Failed", description=str(e)[:2000], color=0xED4245)
+            e = EmbedBuilder.error("Login Failed", str(e)[:2000], footer_text="Sparx Maths | Powered by Manus AI")
             await interaction.followup.send(embed=e, ephemeral=True)
 
 class SchoolSearchModal(Modal, title="Search Schools"):
@@ -845,7 +857,7 @@ class SchoolSearchModal(Modal, title="Search Schools"):
         matches = await sparx.search_schools(q)
         if not matches:
             await interaction.followup.send(f"❌ No schools for `{q}`", ephemeral=True); return
-        e = discord.Embed(title=f"🏫 Schools matching `{q}`", description=f"Found `{min(len(matches),20)}`", color=random_color())
+        e = EmbedBuilder.info(f"🏫 Schools matching `{q}`", f"Found `{min(len(matches),20)}`", footer_text="Sparx Maths | Powered by Manus AI")
         for s in matches[:20]: e.add_field(name=s.name, value=s.town or "\u2014", inline=False)
         if len(matches) > 20: e.set_footer(text=f"+{len(matches)-20} more")
         await interaction.followup.send(embed=e, ephemeral=True)
@@ -859,7 +871,7 @@ class AITestModal(Modal, title="Test AI Solver"):
         q = self.children[0].value
         ans = await sparx.solve_q(q)
         if ans:
-            e = discord.Embed(title="🤖 AI Solved", description=f"**Q:** {q}\n```json\n{json.dumps(ans, indent=2)}\n```", color=random_color())
+            e = EmbedBuilder.success("AI Solved", f"**Q:** {q}\n```json\n{json.dumps(ans, indent=2)}\n```", footer_text="Sparx Maths | Powered by Manus AI")
             await interaction.followup.send(embed=e, ephemeral=True)
         else: await interaction.followup.send("❌ All AI failed", ephemeral=True)
 
@@ -889,12 +901,12 @@ async def cmd_login(ctx, *, school_name: str = None):
         await ctx.send("⏳ Logging in...", delete_after=10)
         sess = await sparx.login(username, password, school)
         s['accounts'].append(sess); s['active'] = len(s['accounts']) - 1
-        e = discord.Embed(title="✅ Login Successful", description=f"**{sess.get('user_name',username)}**\n{school.name}", color=0x57F287)
+        e = EmbedBuilder.success("Login Successful", f"**{sess.get('user_name',username)}**\n{school.name}", footer_text="Sparx Maths | Powered by Manus AI")
         await ctx.send(embed=e, delete_after=30)
     except asyncio.TimeoutError:
         await ctx.send("⏰ Timed out", delete_after=10)
     except Exception as e:
-        e = discord.Embed(title="❌ Login Failed", description=str(e)[:2000], color=0xED4245)
+        e = EmbedBuilder.error("Login Failed", str(e)[:2000], footer_text="Sparx Maths | Powered by Manus AI")
         await ctx.send(embed=e, delete_after=60)
 
 @bot.command(name="schools")
@@ -903,7 +915,7 @@ async def cmd_schools(ctx, *, query: str):
     matches = await sparx.search_schools(query)
     if not matches:
         await ctx.send(f"❌ No schools for `{query}`", delete_after=10); return
-    e = discord.Embed(title=f"🏫 Schools matching `{query}`", description=f"Found `{min(len(matches),20)}`", color=random_color())
+    e = EmbedBuilder.info(f"🏫 Schools matching `{query}`", f"Found `{min(len(matches),20)}`", footer_text="Sparx Maths | Powered by Manus AI")
     for s in matches[:20]: e.add_field(name=s.name, value=s.town or "\u2014", inline=False)
     if len(matches) > 20: e.set_footer(text=f"+{len(matches)-20} more")
     await ctx.send(embed=e, delete_after=60)
@@ -918,13 +930,15 @@ async def cmd_homework(ctx):
         try:
             hws = await sparx.get_homeworks(acc)
             if not hws: continue
-            e = discord.Embed(title=f"{acc.get('user_name',acc['username'])} @ {acc.get('school_name','?')}", color=random_color())
-            for h in hws:
-                pct = (h['completed_qs']/h['total_qs']*100) if h['total_qs']>0 else 0
-                bar = progress_bar(pct)
-                status = "✅" if h['completed_qs'] >= h['total_qs'] else "⏳"
-                e.add_field(name=f"{status} {bar} {h['name'][:40]}", value=f"Due: `{h['due'][:10] or 'N/A'}` | `{h['completed_qs']}/{h['total_qs']}`", inline=False)
-            await ctx.send(embed=e, delete_after=120)
+                    e = EmbedBuilder._base(EmbedBuilder.COLORS["sparx"])
+                    e.title = f"📚 Homework for {acc.get(\'user_name\',acc[\'username\'])} @ {acc.get(\'school_name\',\'?\')}"
+                    e.set_footer(text="Sparx Maths | Powered by Manus AI")
+                    for h in hws:
+                        pct = (h["completed_qs"]/h["total_qs"]) if h["total_qs"]>0 else 0
+                        bar = EmbedBuilder._progress_bar(pct)
+                        status = "✅" if h["completed_qs"] >= h["total_qs"] else "⏳"
+                        e.add_field(name=f"{status} {bar} {h["name"][:40]}", value=f"Due: `{h["due"][:10] or 'N/A'}` | `{h["completed_qs"]}/{h["total_qs"]}`", inline=False)
+                    await ctx.send(embed=e, delete_after=120)
         except: continue
 
 @bot.command(name="accounts", aliases=["acc"])
@@ -968,7 +982,9 @@ async def cmd_working(ctx):
 @bot.command(name="status")
 async def cmd_status(ctx):
     s = store(ctx.author.id)
-    e = discord.Embed(title="📊 Bot Status", color=random_color())
+    e = EmbedBuilder._base(EmbedBuilder.COLORS["primary"])
+    e.title = "📊 Bot Status"
+    e.set_footer(text="Sparx Maths | Powered by Manus AI")
     e.add_field(name="Accounts", value=f"`{len(s['accounts'])}/{MAX_ACCOUNTS}`")
     if s['accounts'] and s['active'] >= 0:
         a = s['accounts'][s['active']]
@@ -996,7 +1012,9 @@ async def cmd_dmupdate(ctx, toggle: str = None):
 async def cmd_hub(ctx):
     s = store(ctx.author.id)
     has_accounts = bool(s['accounts']) and s['active'] >= 0
-    e = discord.Embed(title="🤖 Sparx Command Centre", color=random_color())
+    e = EmbedBuilder._base(EmbedBuilder.COLORS["primary"])
+    e.title = "🤖 Sparx Command Centre"
+    e.set_footer(text="Sparx Maths | Powered by Manus AI")
     if has_accounts:
         a = s['accounts'][s['active']]
         e.add_field(name="Active", value=f"{a.get('user_name',a['username'])} @ {a.get('school_name','?')}", inline=False)

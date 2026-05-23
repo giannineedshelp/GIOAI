@@ -24,6 +24,7 @@ import random
 import time
 import uuid
 import logging
+import config as shared_config
 from datetime import datetime, timezone
 from typing import Optional, List, Tuple
 
@@ -65,17 +66,10 @@ DEFAULT_ROUNDS = 20
 MAX_ROUNDS = 50
 
 
-def load_config() -> dict:
-    try:
-        with open("config.json", "r") as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        return {"saved_accounts": {}}
 
 
-def save_config(cfg: dict):
-    with open("config.json", "w") as f:
-        json.dump(cfg, f, indent=2)
+
+
 
 
 class XPFarmView(discord.ui.View):
@@ -389,7 +383,7 @@ class XPFarmCommands(commands.Cog):
         await interaction.response.defer()
 
         # ---- 1) Load saved account ----
-        config = load_config()
+        config = shared_config.load_config()
         guild_id = str(interaction.guild_id)
         saved = config.get("saved_accounts", {}).get(guild_id, {})
 
@@ -451,12 +445,13 @@ class XPFarmCommands(commands.Cog):
         rounds = max(1, min(rounds, MAX_ROUNDS))
 
         # ---- 6) Initialize stealth engine for this session ----
+        settings = shared_config.get_guild_settings(interaction.guild_id)
         stealth = StealthManager(
-            speed=10.0,
-            min_accuracy=85,
-            max_accuracy=92,
-            min_seconds_per_question=5.0,
-            max_seconds_per_question=8.0,
+            speed=settings.get("speed", 10.0),
+            min_accuracy=settings.get("min_accuracy", 85),
+            max_accuracy=settings.get("max_accuracy", 92),
+            min_seconds_per_question=settings.get("min_seconds_per_question", 5.0),
+            max_seconds_per_question=settings.get("max_seconds_per_question", 8.0),
             user_id=interaction.user.id,
             guild_id=interaction.guild_id,
         )
@@ -494,7 +489,7 @@ class XPFarmCommands(commands.Cog):
     async def languages(self, interaction: discord.Interaction, account: str):
         await interaction.response.defer()
 
-        config = load_config()
+        config = shared_config.load_config()
         guild_id = str(interaction.guild_id)
         saved = config.get("saved_accounts", {}).get(guild_id, {})
 

@@ -20,7 +20,7 @@ from discord.ext import commands
 
 from automation.api_direct import LNApiClient
 from automation.stealth import StealthManager
-from utils.embeds import EmbedBuilder
+from shared.utils.embed_builder import EmbedBuilder
 
 logger = logging.getLogger("lnut-bot")
 
@@ -127,7 +127,7 @@ async def do_login(username: str, password: str) -> Tuple[bool, str]:
         result = await client.login(username, password)
         if client.token or result.get("newToken"):
             if not client.token:
-            client.token = result.get("newToken")
+                client.token = result.get("newToken")
         return True, client.token
         return False, result.get("msg", "No token")
     except Exception as e:
@@ -188,9 +188,9 @@ class LoginModal(ui.Modal, title="Login to LanguageNut"):
         ok, msg = await do_login(self.username.value, self.password.value)
         if ok:
             save_account(self.guild_id, self.username.value, self.password.value)
-            e = EmbedBuilder.success("Logged In", f"Account: **{self.username.value}**")
+            e = EmbedBuilder.success("Logged In", f"Account: **{self.username.value}**", footer_text="Languagenut | Powered by Manus AI")
         else:
-            e = EmbedBuilder.error("Login Failed", str(msg))
+            e = EmbedBuilder.error("Login Failed", str(msg), footer_text="Languagenut | Powered by Manus AI")
         await interaction.followup.send(embed=e, ephemeral=True)
 
 # ─── Save Account Modal ───────────────────────────────────────────────────
@@ -206,9 +206,9 @@ class SaveAccountModal(ui.Modal, title="Save Account"):
         ok, token = await do_login(self.username.value, self.password.value)
         if ok:
             save_saved_account(self.guild_id or 0, self.label.value, self.username.value, self.password.value, token)
-            e = EmbedBuilder.success("Account Saved", f"**{self.label.value}** → `{self.username.value}`")
+            e = EmbedBuilder.success("Account Saved", f"**{self.label.value}** → `{self.username.value}`", footer_text="Languagenut | Powered by Manus AI")
         else:
-            e = EmbedBuilder.error("Login Failed", token)
+            e = EmbedBuilder.error("Login Failed", token, footer_text="Languagenut | Powered by Manus AI")
         await interaction.followup.send(embed=e, ephemeral=True)
 
 # ─── Hub View ─────────────────────────────────────────────────────────────
@@ -244,7 +244,7 @@ class HubView(ui.View):
             title = hw.get("title", hw.get("name", "Untitled"))
             status = "✅" if hw.get("completed") else "📝"
             lines.append(f"{status} **{title}**")
-        e = EmbedBuilder.info("Homeworks", "\n".join(lines))
+        e = EmbedBuilder.homework_embed("Homeworks", "\n".join(lines), EmbedBuilder.COLORS["info"], footer_text="Languagenut | Powered by Manus AI")
         await interaction.followup.send(embed=e, ephemeral=True)
 
     @ui.button(label="🥇 Leaderboard", style=discord.ButtonStyle.primary, row=0)
@@ -266,9 +266,9 @@ class HubView(ui.View):
                 pts = int(s.get("score", 0))
                 medal = ["🥇", "🥈", "🥉"][i] if i < 3 else f"`#{i+1}`"
                 lines.append(f"{medal} **{name}** — {pts:,} pts")
-            e = EmbedBuilder.info("Leaderboard", "\n".join(lines))
+            e = EmbedBuilder.info("Leaderboard", "\n".join(lines), footer_text="Languagenut | Powered by Manus AI")
         else:
-            e = EmbedBuilder.warning("Leaderboard", "No data.")
+            e = EmbedBuilder.warning("Leaderboard", "No data.", footer_text="Languagenut | Powered by Manus AI")
         await interaction.followup.send(embed=e, ephemeral=True)
 
     @ui.button(label="❤️ Health", style=discord.ButtonStyle.secondary, row=1)
@@ -643,7 +643,7 @@ class Commands(commands.Cog):
             bar = _progress_bar(done/total if total > 0 else 0, 10)
             status = "✅" if hw.get("completed") else "📝"
             lines.append(f"{status} **{title}**\n`{bar}` {done}/{total}")
-        e = EmbedBuilder.info("Homeworks", "\n".join(lines))
+        e = EmbedBuilder.homework_embed("Homeworks", "\n".join(lines), EmbedBuilder.COLORS["info"], footer_text="Languagenut | Powered by Manus AI")
         await interaction.followup.send(embed=e, ephemeral=True)
 
     @app_commands.command(name="leaderboard", description="View rankings")
