@@ -687,8 +687,8 @@ class HubView(View):
                     
                     pct = (t_idx + 1) / total * 100
 
-                    await interaction.edit_original_response(content=f"▶ **{hw_name}**
-{bar} Task **{t_idx+1}/{total}**")
+                    bar = progress_bar(pct)
+                    await interaction.edit_original_response(content=f"▶ **{hw_name}**\n{bar} Task **{t_idx+1}/{total}**")
                 
                 await interaction.edit_original_response(content=f"✅ **{hw_name}** complete!")
             except Exception as e:
@@ -930,15 +930,15 @@ async def cmd_homework(ctx):
         try:
             hws = await sparx.get_homeworks(acc)
             if not hws: continue
-                    e = EmbedBuilder._base(EmbedBuilder.COLORS["sparx"])
-                    e.title = f"📚 Homework for {acc.get(\'user_name\',acc[\'username\'])} @ {acc.get(\'school_name\',\'?\')}"
-                    e.set_footer(text="Sparx Maths | Powered by Manus AI")
-                    for h in hws:
-                        pct = (h["completed_qs"]/h["total_qs"]) if h["total_qs"]>0 else 0
-                        bar = EmbedBuilder._progress_bar(pct)
-                        status = "✅" if h["completed_qs"] >= h["total_qs"] else "⏳"
-                        e.add_field(name=f"{status} {bar} {h["name"][:40]}", value=f"Due: `{h["due"][:10] or 'N/A'}` | `{h["completed_qs"]}/{h["total_qs"]}`", inline=False)
-                    await ctx.send(embed=e, delete_after=120)
+            e = EmbedBuilder._base(EmbedBuilder.COLORS["sparx"])
+            e.title = f"📚 Homework for {acc.get('user_name',acc['username'])} @ {acc.get('school_name','?')}"
+            e.set_footer(text="Sparx Maths | Powered by Manus AI")
+            for h in hws:
+                pct = (h["completed_qs"]/h["total_qs"]) if h["total_qs"]>0 else 0
+                bar = EmbedBuilder._progress_bar(pct)
+                status = "✅" if h["completed_qs"] >= h["total_qs"] else "⏳"
+                e.add_field(name=f"{status} {bar} {h['name'][:40]}", value=f"Due: `{h['due'][:10] or 'N/A'}` | `{h['completed_qs']}/{h['total_qs']}`", inline=False)
+            await ctx.send(embed=e, delete_after=120)
         except: continue
 
 @bot.command(name="accounts", aliases=["acc"])

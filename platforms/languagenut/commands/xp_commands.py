@@ -26,6 +26,7 @@ import uuid
 import logging
 import config as shared_config
 from datetime import datetime, timezone
+from shared.utils.embed_builder import EmbedBuilder
 from typing import Optional, List, Tuple
 
 import discord

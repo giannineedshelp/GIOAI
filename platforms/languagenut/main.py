@@ -79,7 +79,8 @@ class LNutBot(commands.Bot):
         # Load cogs
         initial_extensions = [
             "commands.commands",
-            ]
+            "commands.xp_commands",
+        ]
         for ext in initial_extensions:
             try:
                 await self.load_extension(ext)
