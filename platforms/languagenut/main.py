@@ -36,7 +36,7 @@ class Config:
         self.status_channel_id = int(os.getenv('BOT_STATUS_CHANNEL_ID', '0'))
         self.accounts = self._load_accounts()
         if not self.token:
-            raise ValueError("DISCORD_TOKEN not set in environment")
+            logger.warning("❌ DISCORD_TOKEN not set. Bot will fail to start.")
 
     def _load_accounts(self) -> list:
         accounts = []

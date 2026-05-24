@@ -41,13 +41,10 @@ FIREWORKS_KEY = get("FIREWORKS_API_KEY")
 OPENROUTER_KEY = get("OPENROUTER_API_KEY")
 
 if not TOKEN:
-    print("❌ No DISCORD_TOKEN or SPARX_TOKEN found in .env")
-    sys.exit(1)
+    logger.warning("❌ No DISCORD_TOKEN found. Bot may fail to start.")
 
-# Validate critical IDs
 if not GUILD_ID:
-    print("❌ GUILD_ID not set in .env")
-    sys.exit(1)
+    logger.warning("⚠️ GUILD_ID not set. Some features may be limited.")
 
 # ═══════════════════════════════════════════
 # SPARX API CONSTANTS

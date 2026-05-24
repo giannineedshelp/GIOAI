@@ -2,6 +2,7 @@ discord.py>=2.3.0
 httpx>=0.27.0
 aiohttp>=3.9.0
 python-dotenv>=1.0.0
-cryptography>=41.0.0
 curl-cffi>=0.7.0
 pathlib>=1.0.1
+# cryptography is excluded as it fails on some Termux setups without rust
+# install manually with: pkg install rust binutils && pip install cryptography

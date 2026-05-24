@@ -132,13 +132,11 @@ async def slash_status(interaction: discord.Interaction):
 
 @bot.command(name="hub", aliases=["h", "menu"])
 async def cmd_hub(ctx):
-    e = EmbedBuilder._base(EmbedBuilder.COLORS["primary"])
-    e.add_field(name="Slash Commands", value="</sparx> — Sparx\n</languagenut> — Languagenut\n</status> — All platforms", inline=False)
-    e.add_field(name="Prefix", value="`g!hub` — This menu\n`g!ping` — Latency", inline=False)
-    for k, p in platforms.get_all().items():
-        em = {"online": "🟢", "idle": "🟡", "offline": "🔴"}.get(p["status"], "⚪")
-        e.add_field(name=f"{p['emoji']} {p['name']}", value=f"{em} `{p['status'].upper()}`\nPrefix: `{p['prefix']}`", inline=True)
-    await ctx.send(embed=e, delete_after=120)
+    e = EmbedBuilder.simple("🤖 GIOAI Controller", "Select a platform to manage your bots.", "primary")
+    e.add_field(name="📐 Sparx Maths", value="`s!hub` - Open Menu\n`/sparx` - Quick View", inline=True)
+    e.add_field(name="🌍 LanguageNut", value="`ln!hub` - Open Menu\n`/languagenut` - Quick View", inline=True)
+    e.set_footer(text="GIOAI Controller v4.0")
+    await ctx.send(embed=e, delete_after=300)
 
 @bot.command(name="ping")
 async def cmd_ping(ctx):
