@@ -1,116 +1,162 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GIOAI — Autocompleter</title>
-    <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>GIOAI — Autocompleter Ecosystem</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div id="app">
-        <!-- Login Screen -->
-        <div id="loginScreen" class="screen active">
-            <div class="login-card">
-                <div class="logo-top">GIOAI</div>
-                <div class="version-badge">v4.0</div>
-                <h1>Autocompleter</h1>
-                <p class="subtitle">Select a platform and log in</p>
+<div id="app">
 
-                <div class="field">
-                    <label>Platform</label>
-                    <select id="platformSelect">
-                        <option value="languagenut">🌍 LanguageNut</option>
-                    </select>
-                </div>
-
-                <div class="field">
-                    <label>Username</label>
-                    <input type="text" id="usernameInput" placeholder="Enter your username" spellcheck="false">
-                </div>
-
-                <div class="field">
-                    <label>Password</label>
-                    <input type="password" id="passwordInput" placeholder="Enter your password">
-                </div>
-
-                <button id="loginBtn" class="btn primary">Log In</button>
-                <p class="footer-note" id="loginStatus">Authorized pentest — credentials stay local</p>
-            </div>
-        </div>
-
-        <!-- Dashboard Screen -->
-        <div id="dashScreen" class="screen">
-            <header class="topbar">
-                <div class="topbar-left">
-                    <span class="topbar-title" id="dashTitle">🌍 LanguageNut</span>
-                    <span class="topbar-badge on" id="dashStatus">Connected</span>
-                </div>
-                <div class="topbar-right">
-                    <span class="speed-label" id="dashSpeed">⏱ 2h 46m</span>
-                    <button class="btn icon-btn" id="settingsBtn" title="Settings">⚙️</button>
-                    <button class="btn icon-btn" id="logoutBtn" title="Logout">✕</button>
-                </div>
-            </header>
-
-            <div class="dash-layout">
-                <!-- Activity Log (left) -->
-                <aside class="log-panel">
-                    <div class="panel-title">LOG</div>
-                    <div class="log-box" id="logBox">
-                        <div class="log-muted">Ready</div>
-                    </div>
-                </aside>
-
-                <!-- Main Content (right) -->
-                <main class="main-panel">
-                    <div class="toolbar">
-                        <div>
-                            <h2 id="taskHeader">Assignments</h2>
-                            <p class="dim" id="taskCount">Loading...</p>
-                        </div>
-                        <div class="toolbar-actions">
-                            <label class="check-all">
-                                <input type="checkbox" id="selectAllCb">
-                                <span>All</span>
-                            </label>
-                            <button class="btn primary sm" id="farmBtn">▶ Run Selected</button>
-                        </div>
-                    </div>
-
-                    <!-- Progress -->
-                    <div class="progress-row">
-                        <div class="progress-track">
-                            <div class="progress-fill" id="progressFill"></div>
-                        </div>
-                        <span class="progress-text" id="progressText">0%</span>
-                    </div>
-
-                    <!-- Task List -->
-                    <div id="taskList" class="task-list"></div>
-                </main>
-            </div>
-        </div>
+  <!-- PLATFORM SELECT -->
+  <div id="platform-screen" class="screen active">
+    <div class="orb-container">
+      <div class="orb orb-1"></div>
+      <div class="orb orb-2"></div>
+      <div class="orb orb-3"></div>
     </div>
+    <div class="login-card glass">
+      <div class="logo">
+        <span class="logo-text">GIOAI</span>
+        <span class="logo-sub">v2.1</span>
+      </div>
+      <p class="tagline">Multi-Platform Autocompleter Ecosystem</p>
+      <div class="platform-selector">
+        <label for="platform">Select Platform</label>
+        <select id="platform">
+          <option value="" disabled selected>Choose a platform</option>
+          <option value="languagenut">LanguageNut Autocompleter</option>
+          <option value="sparx" disabled>Sparx Maths (coming soon)</option>
+          <option value="hegarty" disabled>HegartyMaths (coming soon)</option>
+        </select>
+      </div>
+      <button id="select-platform-btn" class="btn-primary" disabled>Continue</button>
+      <p class="footnote">Select a platform to configure and authenticate.</p>
+    </div>
+  </div>
 
-    <!-- Settings Modal -->
-    <dialog id="settingsModal" class="modal">
-        <div class="modal-inner">
-            <h3>⚙️ Settings</h3>
-            <div class="field">
-                <label>Completion Speed (per question)</label>
-                <div class="slider-row">
-                    <input type="range" id="speedSlider" min="1" max="5" step="0.1" value="4.0">
-                    <span id="speedLabel">2h 46m 40s</span>
-                </div>
+  <!-- LOGIN -->
+  <div id="login-screen" class="screen">
+    <div class="orb-container">
+      <div class="orb orb-1"></div>
+      <div class="orb orb-2"></div>
+      <div class="orb orb-3"></div>
+    </div>
+    <div class="login-card glass">
+      <button id="back-to-platform" class="btn-ghost" style="align-self:flex-start;padding:0.3rem 0.8rem;font-size:0.8rem">&larr; Back</button>
+      <div class="logo" style="margin-top:-0.3rem">
+        <span class="logo-text" id="login-platform-name">LanguageNut</span>
+      </div>
+      <div class="input-group">
+        <label for="username">Username / Email</label>
+        <input type="text" id="username" placeholder="Enter your username" autocomplete="username">
+      </div>
+      <div class="input-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" placeholder="Enter your password" autocomplete="current-password">
+      </div>
+      <button id="login-btn" class="btn-primary">Authenticate</button>
+      <p class="footnote">Credentials sent directly to the platform API only.</p>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="dashboard-screen" class="screen">
+    <header class="dashboard-header glass" id="dash-header">
+      <div class="header-left">
+        <span class="header-logo">GIOAI</span>
+        <span class="header-platform" id="header-platform">LanguageNut Autocompleter</span>
+      </div>
+      <div class="header-right">
+        <span class="status-dot online" id="status-dot"></span>
+        <span id="user-display" class="header-user">Loading...</span>
+        <button id="settings-btn" class="btn-ghost header-icon-btn" title="Settings">&#x2699;</button>
+        <button id="logout-btn" class="btn-ghost">Logout</button>
+      </div>
+    </header>
+    <main class="dashboard-main">
+      <aside class="sidebar glass" id="sidebar">
+        <div class="sidebar-section">
+          <h3>Controls</h3>
+          <div class="control-group">
+            <label>Delay per question</label>
+            <div class="range-group">
+              <input type="range" id="delay-min" min="1" max="20" value="5" step="0.5">
+              <input type="range" id="delay-max" min="1" max="20" value="8" step="0.5">
             </div>
-            <div class="modal-actions">
-                <button class="btn outline sm" onclick="setAllChecks(true)">✓ All</button>
-                <button class="btn outline sm" onclick="setAllChecks(false)">✕ None</button>
-                <button class="btn primary sm" onclick="document.getElementById('settingsModal').close()">Done</button>
-            </div>
+            <span class="range-label" id="delay-label">5s &mdash; 8s</span>
+          </div>
+          <button id="fetch-tasks-btn" class="btn-primary">Fetch Tasks</button>
+          <button id="start-all-btn" class="btn-success" disabled>Complete All</button>
+          <button id="stop-btn" class="btn-danger" disabled>Stop</button>
         </div>
-    </dialog>
+        <div class="sidebar-section">
+          <h3>Stats</h3>
+          <div class="stat-row"><span>Completed</span><span id="stat-completed">0</span></div>
+          <div class="stat-row"><span>XP Earned</span><span id="stat-xp">0</span></div>
+          <div class="stat-row"><span>Errors</span><span id="stat-errors">0</span></div>
+        </div>
+      </aside>
+      <section class="content">
+        <div class="progress-container glass">
+          <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+          <span class="progress-text" id="progress-text">0 / 0 tasks</span>
+        </div>
+        <div id="tasks-container">
+          <div class="empty-state">
+            <span class="empty-icon">&#x1F4DA;</span>
+            <p>Click <strong>Fetch Tasks</strong> to load your homework.</p>
+          </div>
+        </div>
+        <div id="activity-log" class="glass">
+          <h3>Activity Log</h3>
+          <div id="log-entries"><div class="log-entry info">Ready. Select a platform to begin.</div></div>
+        </div>
+      </section>
+    </main>
+  </div>
 
-    <script src="app.js"></script>
+  <!-- SETTINGS MODAL -->
+  <div id="settings-screen" class="screen">
+    <div class="settings-card glass">
+      <div class="settings-header">
+        <h2>Settings</h2>
+        <button id="settings-close" class="btn-ghost">&times;</button>
+      </div>
+      <div class="settings-body">
+        <div class="settings-group">
+          <h3>Theme</h3>
+          <div class="theme-options">
+            <button class="theme-btn active" data-theme="dark">Dark</button>
+            <button class="theme-btn" data-theme="light">Light</button>
+            <button class="theme-btn" data-theme="midnight">Midnight</button>
+            <button class="theme-btn" data-theme="amber">Amber</button>
+          </div>
+        </div>
+        <div class="settings-group">
+          <h3>LanguageNut Settings</h3>
+          <div class="input-group">
+            <label>Delay range (seconds per question)</label>
+            <div class="range-group">
+              <input type="range" id="set-delay-min" min="1" max="20" value="5" step="0.5">
+              <input type="range" id="set-delay-max" min="1" max="20" value="8" step="0.5">
+            </div>
+            <span class="range-label" id="set-delay-label">5s &mdash; 8s</span>
+          </div>
+        </div>
+        <div class="settings-group">
+          <h3>About</h3>
+          <p class="settings-about">GIOAI v2.1 &mdash; Multi-Platform Autocompleter Ecosystem.<br>All processing is client-side. No data leaves your browser except API calls to the selected platform.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+<div id="toast-container"></div>
+<script src="script.js"></script>
 </body>
 </html>
