@@ -1,10 +1,41 @@
-#!/data/data/com.termux/files/usr/bin/bash
-# GIOAI Setup
-cd /storage/emulated/0/Documents/GIOAI
-echo "Installing dependencies..."
-pip install -r requirements.txt -q
-mkdir -p data/cache logs
-echo "Downloading school data..."
-curl -s -o data/cache/schools.txt "https://static.sparxhomework.uk/sl/spx001/data.txt"
-if [ -f data/cache/schools.txt ]; then echo "Schools saved ($(wc -c < data/cache/schools.txt) bytes)"; fi
-echo "Done! Run: python platforms/sparx/main.py"
+#!/bin/bash
+# GIOAI Discord Bot Setup Script
+# Run: bash setup.sh
+
+set -e
+
+echo "================================"
+echo "  GIOAI Discord Bot Setup"
+echo "================================"
+
+# Create .env from example if not exists
+if [ ! -f .env ]; then
+    cp .env.example .env
+    echo "✅ Created .env from .env.example"
+    echo "⚠️  Edit .env with your settings before running!"
+else
+    echo "✅ .env already exists"
+fi
+
+# Install Python dependencies
+echo "📦 Installing Python dependencies..."
+pip install -r requirements.txt 2>/dev/null || pip3 install -r requirements.txt 2>/dev/null
+
+# Install system dependencies for playback/automation
+if command -v pkg &> /dev/null; then
+    echo "📱 Termux detected - installing system packages..."
+    pkg install -y python rust binutils 2>/dev/null || true
+fi
+
+echo ""
+echo "================================"
+echo "  Setup Complete!"
+echo "================================"
+echo ""
+echo "To run the bot:"
+echo "  python GIOAI.py"
+echo ""
+echo "Or use the launcher:"
+echo "  python launcher.py"
+echo ""
+
